@@ -340,6 +340,11 @@
     .auth-card label { display: grid; gap: 6px; margin-top: 11px; color: #6d6179; font-size: .78rem; font-weight: 700; }
     .auth-card input { min-height: 42px; padding: 9px; font: inherit; border: 1px solid #ddd5e7; border-radius: 4px; }
     .auth-card button { width: 100%; margin-top: 18px; }
+    .auth-switch { display: flex; gap: 7px; margin: 16px 0 4px; }
+    .auth-switch button { width: 50%; margin: 0; padding: 8px; color: #6a5879; font: inherit; font-size: .75rem; background: #f3eef8; border: 0; border-radius: 4px; cursor: pointer; }
+    .auth-switch button.active { color: #fff; background: #67438d; }
+    .auth-mode { display: none; }
+    .auth-mode.active { display: block; }
     .auth-error { min-height: 20px; margin: 12px 0 0 !important; color: #b74444 !important; }
     .auth-user { display: none; align-items: center; gap: 9px; margin-right: auto; color: #69577d; font-size: .75rem; }
     .auth-user button { margin: 0; padding: 6px 9px; width: auto; color: #70458e; font: inherit; background: #f1eafa; border: 0; border-radius: 4px; cursor: pointer; }
@@ -462,15 +467,24 @@
 </head>
 <body>
   <div class="auth-gate" id="auth-gate">
-    <form class="auth-card" id="auth-form">
+    <div class="auth-card">
       <img src="./tebyan-logo.jpeg" alt="شعار مؤسسة تيبان">
-      <h2>تسجيل الدخول</h2>
+      <h2 id="auth-title">تسجيل الدخول</h2>
       <p>نظام تيبان لمتابعة المعلمات والطالبات</p>
-      <label>البريد الإلكتروني<input id="auth-email" type="email" autocomplete="email" required></label>
-      <label>كلمة المرور<input id="auth-password" type="password" autocomplete="current-password" required></label>
-      <button class="panel-button" type="submit">دخول آمن</button>
+      <div class="auth-switch"><button class="active" id="login-mode" type="button">دخول</button><button id="signup-mode" type="button">تسجيل طالبة</button></div>
+      <form class="auth-mode active" id="auth-form">
+        <label>البريد الإلكتروني<input id="auth-email" type="email" autocomplete="email" required></label>
+        <label>كلمة المرور<input id="auth-password" type="password" autocomplete="current-password" required></label>
+        <button class="panel-button" type="submit">دخول آمن</button>
+      </form>
+      <form class="auth-mode" id="signup-form">
+        <label>اسم الطالبة<input id="signup-name" type="text" required></label>
+        <label>البريد الإلكتروني<input id="signup-email" type="email" autocomplete="email" required></label>
+        <label>كلمة المرور<input id="signup-password" type="password" minlength="6" autocomplete="new-password" required></label>
+        <button class="panel-button" type="submit">إنشاء حساب طالبة</button>
+      </form>
       <p class="auth-error" id="auth-error" aria-live="polite"></p>
-    </form>
+    </div>
   </div>
   <main class="page">
     <aside class="sidebar" aria-label="القائمة الرئيسية">
@@ -745,6 +759,35 @@
       const { data, error } = await supabaseClient.auth.signInWithPassword({ email: document.querySelector("#auth-email").value.trim(), password: document.querySelector("#auth-password").value });
       if (error) { errorBox.textContent = "بيانات الدخول غير صحيحة أو الحساب غير موجود."; return; }
       await finishAuthentication(data.session);
+    });
+    document.querySelector("#login-mode").addEventListener("click", () => {
+      document.querySelector("#login-mode").classList.add("active");
+      document.querySelector("#signup-mode").classList.remove("active");
+      document.querySelector("#auth-form").classList.add("active");
+      document.querySelector("#signup-form").classList.remove("active");
+      document.querySelector("#auth-title").textContent = "تسجيل الدخول";
+      document.querySelector("#auth-error").textContent = "";
+    });
+    document.querySelector("#signup-mode").addEventListener("click", () => {
+      document.querySelector("#signup-mode").classList.add("active");
+      document.querySelector("#login-mode").classList.remove("active");
+      document.querySelector("#signup-form").classList.add("active");
+      document.querySelector("#auth-form").classList.remove("active");
+      document.querySelector("#auth-title").textContent = "تسجيل حساب طالبة";
+      document.querySelector("#auth-error").textContent = "";
+    });
+    document.querySelector("#signup-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const errorBox = document.querySelector("#auth-error");
+      errorBox.textContent = "جاري إنشاء الحساب...";
+      const { data, error } = await supabaseClient.auth.signUp({
+        email: document.querySelector("#signup-email").value.trim(),
+        password: document.querySelector("#signup-password").value,
+        options: { data: { full_name: document.querySelector("#signup-name").value.trim(), role: "student" } }
+      });
+      if (error) { errorBox.textContent = error.message; return; }
+      if (!data.session) errorBox.textContent = "تم إنشاء الحساب. افتحي بريدك الإلكتروني واضغطي رابط التأكيد ثم سجّلي الدخول.";
+      else await finishAuthentication(data.session);
     });
     document.querySelector("#sign-out").addEventListener("click", async () => { await supabaseClient.auth.signOut(); window.location.reload(); });
     supabaseClient.auth.getSession().then(({ data }) => finishAuthentication(data.session));
