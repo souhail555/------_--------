@@ -948,6 +948,7 @@
       if (event.target.matches(".status-option")) {
         student.status = event.target.dataset.status;
         saveStudents();
+        logActivity(`تم حفظ حالة ${student.name}: ${event.target.textContent.trim()}.`);
         render();
       }
       if (event.target.matches("[data-action='edit']")) {
@@ -957,12 +958,14 @@
         student.name = name.trim() || student.name;
         student.researches = researches.trim() || student.researches;
         saveStudents();
+        logActivity(`تم حفظ تعديل بيانات الطالبة ${student.name}.`);
         render();
       }
       if (event.target.matches("[data-action='delete']")) {
         if (!window.confirm(`حذف الطالبة ${student.name}؟`)) return;
         students = students.filter((item) => item.id !== student.id);
         saveStudents();
+        logActivity(`تم حذف الطالبة ${student.name}.`);
         render();
       }
       if (event.target.matches("[data-action='message']")) {
@@ -976,6 +979,11 @@
       const student = students.find((item) => item.id === event.target.closest("tr").dataset.id);
       student.note = event.target.value;
       saveStudents();
+    });
+    tableBody.addEventListener("focusout", (event) => {
+      if (!event.target.matches(".note-input")) return;
+      const student = students.find((item) => item.id === event.target.closest("tr").dataset.id);
+      if (student) logActivity(`تم حفظ ملاحظة الطالبة ${student.name}.`);
     });
 
     document.addEventListener("click", (event) => {
@@ -994,6 +1002,7 @@
       const period = hourNumber >= 12 ? "م" : "ص";
       todaySchedule.push({ time: `${String(formattedHour).padStart(2, "0")}:${minute} ${period}`, title: titleInput.value.trim(), status: "قادم" });
       saveSchedule();
+      logActivity(`تم حفظ موعد: ${titleInput.value.trim()}.`);
       event.target.reset();
       renderSchedule();
     });
@@ -1002,12 +1011,14 @@
       if (!removeButton) return;
       todaySchedule.splice(Number(removeButton.dataset.scheduleIndex), 1);
       saveSchedule();
+      logActivity("تم حذف موعد من جدول اليوم.");
       renderSchedule();
     });
     document.querySelector("#save-attendance").addEventListener("click", () => {
       document.querySelectorAll("[data-attendance-id]").forEach((select) => { attendance[select.dataset.attendanceId] = select.value; });
       localStorage.setItem(attendanceKey, JSON.stringify(attendance));
       document.querySelector("#save-attendance").textContent = "✓ تم حفظ الحضور";
+      logActivity("تم حفظ سجل الحضور.");
     });
     document.querySelector("#save-memorization").addEventListener("click", () => {
       document.querySelectorAll("[data-memorization-id]").forEach((select) => { memorization[select.dataset.memorizationId] = select.value; });
@@ -1152,6 +1163,7 @@
       const studentId = document.querySelector("#lesson-student-select").value;
       studentLessons[studentId] = { newMemorization: document.querySelector("#lesson-new").value.trim(), review: document.querySelector("#lesson-review").value.trim(), evaluation: document.querySelector("#lesson-evaluation").value, nextLesson: document.querySelector("#lesson-next").value.trim(), homework: document.querySelector("#lesson-homework").value.trim() };
       saveLessons();
+      logActivity(`تم حفظ بيانات الحصة للطالبة ذات المعرف ${studentId}.`);
       renderStudentAccount(studentId);
       document.querySelector("#lesson-message").textContent = "تم حفظ بيانات الحصة باسم Student ID.";
     }
@@ -1259,6 +1271,7 @@
       document.body.dataset.accent = document.querySelector("#accent-input").value;
       document.body.classList.toggle("dark-mode", document.querySelector("#theme-input").value === "dark");
       document.querySelector("#settings-message").textContent = "تم حفظ الإعدادات بنجاح.";
+      logActivity("تم حفظ إعدادات النظام.");
     });
     document.querySelector("#lock-system").addEventListener("click", () => {
       sessionStorage.removeItem("tebyan-local-role");
@@ -1310,6 +1323,7 @@
       if (!name || !researches) return;
       students.push({ id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${students.length}`, studentId: `ST${String(students.length + 1).padStart(3, "0")}`, teacherId: "TCH001", symbol: symbols[students.length % symbols.length], name, researches, phone: document.querySelector("#student-phone").value.trim(), level: document.querySelector("#student-level").value.trim(), note: "", status: "progress" });
       saveStudents();
+      logActivity(`تم حفظ الطالبة الجديدة ${name}.`);
       event.target.reset();
       render();
     });
