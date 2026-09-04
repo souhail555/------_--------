@@ -329,7 +329,7 @@
     .teacher-editor textarea, .teacher-editor input, .teacher-editor select { min-height: 38px; padding: 8px; color: var(--ink); font: inherit; border: 1px solid var(--line); border-radius: 4px; }
     .teacher-editor textarea { min-height: 74px; resize: vertical; }
     .payment-card { display: grid; grid-template-columns: 170px 1fr; gap: 18px; align-items: center; padding: 15px; background: #eef8fc; border: 1px solid #cde7f1; border-radius: 8px; }
-    .payment-card img { width: 100%; border-radius: 5px; }
+    .payment-visual { display: grid; min-height: 108px; place-items: center; color: #253c69; font-size: 3rem; background: #dff1f7; border-radius: 5px; }
     .payment-details { color: #253c69; font-size: .85rem; line-height: 1.9; }
     .payment-details strong { display: inline-block; min-width: 105px; }
     .student-private-note { margin-top: 14px; padding: 11px 13px; color: #665773; background: #fff8e8; border-right: 3px solid #d5a33b; border-radius: 4px; font-size: .78rem; }
@@ -495,6 +495,12 @@
         <label id="local-student-label">اختاري اسمك<select id="local-student-name" required><option value="">اختاري الطالبة</option></select></label>
         <button class="panel-button" type="submit">دخول إلى النظام</button>
       </form>
+      <div class="cloud-auth">
+        <label>البريد الإلكتروني للحفظ السحابي<input id="cloud-email" type="email" autocomplete="email" placeholder="teacher@example.com"></label>
+        <label>كلمة مرور Supabase<input id="cloud-password" type="password" autocomplete="current-password" placeholder="كلمة المرور"></label>
+        <div class="auth-switch"><button id="cloud-sign-in" type="button">☁ دخول سحابي</button><button id="cloud-sign-up" type="button">＋ إنشاء حساب</button></div>
+        <p class="settings-message" id="cloud-status" aria-live="polite"></p>
+      </div>
       <p class="auth-error" id="auth-error" aria-live="polite"></p>
     </div>
   </div>
@@ -728,7 +734,7 @@
       <section class="workspace-panel" id="payments" aria-label="دفع الرسوم">
         <h3>💳 دفع الرسوم للمؤسسة</h3>
         <div class="payment-card">
-          <img src="./payment-details.png" alt="بيانات دفع الرسوم عبر Touch 'n Go eWallet" onerror="this.style.display='none'">
+          <div class="payment-visual" aria-hidden="true">💳</div>
           <div class="payment-details"><strong>طريقة الدفع:</strong> Touch 'n Go eWallet<br><strong>اسم الحساب:</strong> Yakoubi Bouchra<br><strong>رقم الحساب:</strong> 120578924834<br><button class="panel-button" id="copy-payment" type="button">⧉ نسخ بيانات الدفع</button><p class="settings-message" id="payment-message"></p></div>
         </div>
         <div class="payment-status" id="payment-status-list" style="margin-top:14px"></div>
@@ -757,6 +763,38 @@
   <script>
     const defaultTeacherUsername = "bushra";
     const defaultTeacherPassword = "Tebyan2026";
+    const supabaseUrl = "https://gyyzrobkocetrirdnwbh.supabase.co";
+    const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5eXpyb2Jrb2NldHJpcmRud2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MDMwNjgsImV4cCI6MjEwNDA3OTA2OH0.z9bj_w-rwKP5ZI_yeBOLhNKUnmiVoITYhICDhfhdzK0";
+    const cloudSessionKey = "tebyan-supabase-session";
+    async function cloudRequest(path, options = {}, token = "") {
+      const response = await fetch(`${supabaseUrl}${path}`, { ...options, headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${token || supabaseAnonKey}`, "Content-Type": "application/json", ...(options.headers || {}) } });
+      const body = await response.json().catch(() => null);
+      return { data: response.ok ? body : null, error: response.ok ? null : new Error(body?.msg || body?.message || body?.error_description || `Supabase request failed (${response.status})`) };
+    }
+    const cloudClient = {
+      auth: {
+        async signInWithPassword(credentials) {
+          const result = await cloudRequest("/auth/v1/token?grant_type=password", { method: "POST", body: JSON.stringify(credentials) });
+          if (!result.error) localStorage.setItem(cloudSessionKey, JSON.stringify(result.data));
+          return { data: { session: result.data }, error: result.error };
+        },
+        async signUp(credentials) { return cloudRequest("/auth/v1/signup", { method: "POST", body: JSON.stringify(credentials) }); },
+        async getSession() { return { data: { session: readStored(cloudSessionKey, null) }, error: null }; },
+        async signOut() { localStorage.removeItem(cloudSessionKey); },
+        onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; }
+      },
+      from(table) {
+        return {
+          async upsert(row) {
+            const session = readStored(cloudSessionKey, null);
+            return cloudRequest(`/rest/v1/${table}?on_conflict=user_id`, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(row) }, session?.access_token);
+          },
+          select() { return { eq: (_column, value) => ({ maybeSingle: async () => { const session = readStored(cloudSessionKey, null); const result = await cloudRequest(`/rest/v1/${table}?user_id=eq.${encodeURIComponent(value)}&select=data`, {}, session?.access_token); return { data: Array.isArray(result.data) ? result.data[0] || null : null, error: result.error }; } }) }; }
+        };
+      }
+    };
+    let cloudSession = null;
+    let cloudSaveTimer = null;
     let localRole = sessionStorage.getItem("tebyan-local-role");
     let localStudentName = sessionStorage.getItem("tebyan-local-student") || "";
     const teacherUsername = () => localStorage.getItem("tebyan-teacher-username") || defaultTeacherUsername;
@@ -809,7 +847,7 @@
       document.querySelector("#auth-error").textContent = "";
       openLocalSystem();
     });
-    document.querySelector("#sign-out").addEventListener("click", () => { sessionStorage.removeItem("tebyan-local-role"); sessionStorage.removeItem("tebyan-local-student"); window.location.reload(); });
+    document.querySelector("#sign-out").addEventListener("click", () => { if (cloudClient) cloudClient.auth.signOut(); sessionStorage.removeItem("tebyan-local-role"); sessionStorage.removeItem("tebyan-local-student"); window.location.reload(); });
     document.querySelector("#local-student-name").required = false;
     document.querySelector("#teacher-username").required = true;
     document.querySelector("#teacher-password").required = true;
@@ -850,17 +888,47 @@
       level: "",
       status: "progress"
     }));
-    let students = (JSON.parse(localStorage.getItem(storageKey) || "null") || initialStudents).map((student, index) => ({ phone: "", level: "", teacherId: "TCH001", studentId: `ST${String(index + 1).padStart(3, "0")}`, note: "", ...student }));
+    function readStored(key, fallback) {
+      try {
+        const value = localStorage.getItem(key);
+        return value === null ? fallback : JSON.parse(value);
+      } catch {
+        return fallback;
+      }
+    }
+
+    let students = (readStored(storageKey, null) || initialStudents).map((student, index) => ({ phone: "", level: "", teacherId: "TCH001", studentId: `ST${String(index + 1).padStart(3, "0")}`, note: "", ...student }));
     const lessonStorageKey = "tebyan-student-lessons-v1";
-    let studentLessons = JSON.parse(localStorage.getItem(lessonStorageKey) || "{}");
-    let assignments = JSON.parse(localStorage.getItem("tebyan-assignments-v1") || "[]");
-    let paymentStatuses = JSON.parse(localStorage.getItem("tebyan-payment-status-v1") || "{}");
-    let activityHistory = JSON.parse(localStorage.getItem("tebyan-history-v1") || "[]");
+    let studentLessons = readStored(lessonStorageKey, {});
+    let assignments = readStored("tebyan-assignments-v1", []);
+    let paymentStatuses = readStored("tebyan-payment-status-v1", {});
+    let activityHistory = readStored("tebyan-history-v1", []);
     const attendanceKey = `tebyan-attendance-${scheduleDateKey}`;
     const memorizationKey = `tebyan-memorization-${scheduleDateKey}`;
-    let attendance = JSON.parse(localStorage.getItem(attendanceKey) || "null") || {};
-    let memorization = JSON.parse(localStorage.getItem(memorizationKey) || "null") || {};
-    let todaySchedule = JSON.parse(localStorage.getItem(scheduleStorageKey) || "[]");
+    let attendance = readStored(attendanceKey, {});
+    let memorization = readStored(memorizationKey, {});
+    let todaySchedule = readStored(scheduleStorageKey, []);
+
+    function cloudSnapshot() {
+      return { students, studentLessons, assignments, paymentStatuses, activityHistory, attendance, memorization, todaySchedule };
+    }
+
+    function setCloudStatus(message, isError = false) {
+      const status = document.querySelector("#cloud-status");
+      if (status) {
+        status.textContent = message;
+        status.style.color = isError ? "#b74444" : "#39704c";
+      }
+    }
+
+    function queueCloudSave() {
+      if (!cloudClient || !cloudSession) return;
+      window.clearTimeout(cloudSaveTimer);
+      cloudSaveTimer = window.setTimeout(async () => {
+        const { error } = await cloudClient.from("teacher_backups").upsert({ user_id: cloudSession.user.id, data: cloudSnapshot(), updated_at: new Date().toISOString() });
+        setCloudStatus(error ? "تعذر حفظ النسخة السحابية، والحفظ المحلي يعمل." : "تمت مزامنة البيانات سحابيًا.", Boolean(error));
+      }, 500);
+    }
 
     function escapeHtml(value) {
       return String(value).replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character]));
@@ -869,6 +937,78 @@
     function saveStudents() { localStorage.setItem(storageKey, JSON.stringify(students)); }
     function saveLessons() { localStorage.setItem(lessonStorageKey, JSON.stringify(studentLessons)); }
     function saveSchedule() { localStorage.setItem(scheduleStorageKey, JSON.stringify(todaySchedule)); }
+    function saveAllData() {
+      saveStudents();
+      saveLessons();
+      saveSchedule();
+      localStorage.setItem("tebyan-assignments-v1", JSON.stringify(assignments));
+      localStorage.setItem("tebyan-payment-status-v1", JSON.stringify(paymentStatuses));
+      localStorage.setItem("tebyan-history-v1", JSON.stringify(activityHistory));
+      localStorage.setItem(attendanceKey, JSON.stringify(attendance));
+      localStorage.setItem(memorizationKey, JSON.stringify(memorization));
+      queueCloudSave();
+    }
+
+    async function loadCloudBackup() {
+      if (!cloudClient || !cloudSession) return;
+      const { data, error } = await cloudClient.from("teacher_backups").select("data").eq("user_id", cloudSession.user.id).maybeSingle();
+      if (error) {
+        setCloudStatus("تعذر قراءة النسخة السحابية، وسيستمر الحفظ المحلي.", true);
+        return;
+      }
+      if (!data?.data) {
+        setCloudStatus("تم تسجيل الدخول. ستتم مزامنة التعديلات الجديدة.");
+        queueCloudSave();
+        return;
+      }
+      const backup = data.data;
+      students = Array.isArray(backup.students) ? backup.students : students;
+      studentLessons = backup.studentLessons || studentLessons;
+      assignments = Array.isArray(backup.assignments) ? backup.assignments : assignments;
+      paymentStatuses = backup.paymentStatuses || paymentStatuses;
+      activityHistory = Array.isArray(backup.activityHistory) ? backup.activityHistory : activityHistory;
+      attendance = backup.attendance || attendance;
+      memorization = backup.memorization || memorization;
+      todaySchedule = Array.isArray(backup.todaySchedule) ? backup.todaySchedule : todaySchedule;
+      saveAllData();
+      renderSchedule();
+      render();
+      renderAccounts();
+      setCloudStatus("تم تحميل البيانات السحابية بنجاح.");
+    }
+
+    async function signInToCloud() {
+      const email = document.querySelector("#cloud-email").value.trim();
+      const password = document.querySelector("#cloud-password").value;
+      if (!email || !password) return setCloudStatus("أدخلي البريد الإلكتروني وكلمة المرور.", true);
+      const { data, error } = await cloudClient.auth.signInWithPassword({ email, password });
+      if (error) return setCloudStatus(error.message, true);
+      cloudSession = data.session;
+      await loadCloudBackup();
+    }
+
+    async function signUpToCloud() {
+      const email = document.querySelector("#cloud-email").value.trim();
+      const password = document.querySelector("#cloud-password").value;
+      if (!email || password.length < 6) return setCloudStatus("أدخلي بريدًا صحيحًا وكلمة مرور من 6 أحرف على الأقل.", true);
+      const { error } = await cloudClient.auth.signUp({ email, password, options: { data: { full_name: "معلمة تيبان" } } });
+      setCloudStatus(error ? error.message : "تم إنشاء الحساب. تحققي من البريد إذا طلب Supabase ذلك.", Boolean(error));
+    }
+
+    if (cloudClient) {
+      document.querySelector("#cloud-sign-in").addEventListener("click", signInToCloud);
+      document.querySelector("#cloud-sign-up").addEventListener("click", signUpToCloud);
+      cloudClient.auth.getSession().then(({ data }) => {
+        cloudSession = data.session;
+        if (cloudSession) loadCloudBackup();
+      });
+      cloudClient.auth.onAuthStateChange((_event, session) => {
+        cloudSession = session;
+        if (session) window.setTimeout(loadCloudBackup, 0);
+      });
+    } else {
+      setCloudStatus("الحفظ المحلي فعال. تعذر تحميل مكتبة Supabase.", true);
+    }
     function logActivity(message) {
       activityHistory.unshift({ message, date: new Date().toLocaleString("ar") });
       activityHistory = activityHistory.slice(0, 100);
@@ -1302,7 +1442,7 @@
       document.querySelector("#settings-message").textContent = "تمت إعادة البيانات الافتراضية.";
     });
     document.querySelector("#export-backup").addEventListener("click", () => {
-      const backup = { students, todaySchedule, attendance, memorization, settings: { name: localStorage.getItem("tebyan-system-name"), accent: localStorage.getItem("tebyan-accent"), theme: localStorage.getItem("tebyan-theme") } };
+      const backup = { students, todaySchedule, attendance, memorization, assignments, paymentStatuses, studentLessons, activityHistory, settings: { name: localStorage.getItem("tebyan-system-name"), accent: localStorage.getItem("tebyan-accent"), theme: localStorage.getItem("tebyan-theme"), username: teacherUsername(), password: teacherPassword() } };
       const link = document.createElement("a");
       link.href = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
       link.download = `tebyan-backup-${scheduleDateKey}.json`;
@@ -1321,10 +1461,20 @@
           todaySchedule = Array.isArray(backup.todaySchedule) ? backup.todaySchedule : [];
           attendance = backup.attendance || {};
           memorization = backup.memorization || {};
-          saveStudents(); saveSchedule();
-          localStorage.setItem(attendanceKey, JSON.stringify(attendance));
-          localStorage.setItem(memorizationKey, JSON.stringify(memorization));
+          assignments = Array.isArray(backup.assignments) ? backup.assignments : [];
+          paymentStatuses = backup.paymentStatuses || {};
+          studentLessons = backup.studentLessons || {};
+          activityHistory = Array.isArray(backup.activityHistory) ? backup.activityHistory : [];
+          if (backup.settings) {
+            localStorage.setItem("tebyan-system-name", backup.settings.name || "نظام معلمة");
+            localStorage.setItem("tebyan-accent", backup.settings.accent || "purple");
+            localStorage.setItem("tebyan-theme", backup.settings.theme || "light");
+            localStorage.setItem("tebyan-teacher-username", backup.settings.username || defaultTeacherUsername);
+            localStorage.setItem("tebyan-teacher-password", backup.settings.password || defaultTeacherPassword);
+          }
+          saveAllData();
           renderSchedule(); render();
+          renderAccounts(); renderAssignments(); renderPaymentStatuses(); renderHistory();
           document.querySelector("#backup-message").textContent = "تم استرجاع النسخة الاحتياطية بنجاح.";
         } catch { document.querySelector("#backup-message").textContent = "ملف النسخة الاحتياطية غير صالح."; }
       };
@@ -1345,6 +1495,7 @@
     });
     document.querySelector("#print-report").addEventListener("click", () => window.print());
     document.querySelector("#download-report").addEventListener("click", downloadCsv);
+    window.addEventListener("pagehide", saveAllData);
     document.querySelector(".page-title").textContent = localStorage.getItem("tebyan-system-name") || "نظام معلمة";
     document.querySelector("#system-name-input").value = localStorage.getItem("tebyan-system-name") || "نظام معلمة";
     document.querySelector("#accent-input").value = localStorage.getItem("tebyan-accent") || "purple";
@@ -1355,7 +1506,7 @@
     document.querySelector("#teacher-credentials").style.display = "block";
     document.body.dataset.accent = document.querySelector("#accent-input").value;
     document.body.classList.toggle("dark-mode", document.querySelector("#theme-input").value === "dark");
-    saveStudents();
+    saveAllData();
     renderSchedule();
     render();
     renderAccounts();

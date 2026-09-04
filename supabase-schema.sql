@@ -82,3 +82,27 @@ create policy "student assignments" on public.assignments for select using (stud
 create policy "teacher manages assignments" on public.assignments for all using (teacher_id = auth.uid()) with check (teacher_id = auth.uid());
 create policy "student payments" on public.payments for select using (student_id = auth.uid() or teacher_id = auth.uid() or public.is_admin());
 create policy "teacher manages payments" on public.payments for all using (teacher_id = auth.uid()) with check (teacher_id = auth.uid());
+
+create table if not exists public.teacher_backups (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.teacher_backups enable row level security;
+
+drop policy if exists "teacher reads own backup" on public.teacher_backups;
+create policy "teacher reads own backup" on public.teacher_backups
+  for select using (user_id = auth.uid());
+
+drop policy if exists "teacher creates own backup" on public.teacher_backups;
+create policy "teacher creates own backup" on public.teacher_backups
+  for insert with check (user_id = auth.uid());
+
+drop policy if exists "teacher updates own backup" on public.teacher_backups;
+create policy "teacher updates own backup" on public.teacher_backups
+  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "teacher deletes own backup" on public.teacher_backups;
+create policy "teacher deletes own backup" on public.teacher_backups
+  for delete using (user_id = auth.uid());
