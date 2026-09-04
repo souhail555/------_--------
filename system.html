@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#8a6b2c">
   <title>نظام معلمة | مؤسسة تيبان</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
       --ink: #29241b;
@@ -331,6 +332,17 @@
     .payment-details { color: #253c69; font-size: .85rem; line-height: 1.9; }
     .payment-details strong { display: inline-block; min-width: 105px; }
     .student-private-note { margin-top: 14px; padding: 11px 13px; color: #665773; background: #fff8e8; border-right: 3px solid #d5a33b; border-radius: 4px; font-size: .78rem; }
+    .auth-gate { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(29, 19, 48, .96); }
+    .auth-card { width: min(420px, 100%); padding: 28px; text-align: right; background: #fff; border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+    .auth-card img { display: block; width: 82px; height: 82px; object-fit: cover; margin: 0 auto 12px; border-radius: 50%; }
+    .auth-card h2 { margin: 0 0 7px; color: #4d3473; text-align: center; font-size: 1.25rem; }
+    .auth-card p { margin: 0 0 18px; color: #8d8398; text-align: center; font-size: .8rem; }
+    .auth-card label { display: grid; gap: 6px; margin-top: 11px; color: #6d6179; font-size: .78rem; font-weight: 700; }
+    .auth-card input { min-height: 42px; padding: 9px; font: inherit; border: 1px solid #ddd5e7; border-radius: 4px; }
+    .auth-card button { width: 100%; margin-top: 18px; }
+    .auth-error { min-height: 20px; margin: 12px 0 0 !important; color: #b74444 !important; }
+    .auth-user { display: none; align-items: center; gap: 9px; margin-right: auto; color: #69577d; font-size: .75rem; }
+    .auth-user button { margin: 0; padding: 6px 9px; width: auto; color: #70458e; font: inherit; background: #f1eafa; border: 0; border-radius: 4px; cursor: pointer; }
     body[data-accent="gold"] .sidebar { background: linear-gradient(180deg, #60491e, #97702a); }
     body[data-accent="gold"] .stat { border-top-color: #a47c2d; }
     body[data-accent="gold"] .stat-number, body[data-accent="gold"] .workspace-panel h3 { color: #79591d; }
@@ -449,6 +461,17 @@
   </style>
 </head>
 <body>
+  <div class="auth-gate" id="auth-gate">
+    <form class="auth-card" id="auth-form">
+      <img src="./tebyan-logo.jpeg" alt="شعار مؤسسة تيبان">
+      <h2>تسجيل الدخول</h2>
+      <p>نظام تيبان لمتابعة المعلمات والطالبات</p>
+      <label>البريد الإلكتروني<input id="auth-email" type="email" autocomplete="email" required></label>
+      <label>كلمة المرور<input id="auth-password" type="password" autocomplete="current-password" required></label>
+      <button class="panel-button" type="submit">دخول آمن</button>
+      <p class="auth-error" id="auth-error" aria-live="polite"></p>
+    </form>
+  </div>
   <main class="page">
     <aside class="sidebar" aria-label="القائمة الرئيسية">
       <div class="side-brand">
@@ -484,6 +507,7 @@
         <p class="arabic-subtitle">للقراءات والدراسات القرآنية</p>
         <p class="english-subtitle">TEBYAN EDUCATION &amp; CONSULTING SDN BHD</p>
       </div>
+      <div class="auth-user" id="auth-user"><span id="auth-user-name"></span><span id="auth-user-role"></span><button id="sign-out" type="button">تسجيل الخروج</button></div>
     </header>
 
     <section class="title-strip" aria-label="معلومات النظام">
@@ -689,6 +713,42 @@
     </footer>
   </main>
   <script>
+    const supabaseUrl = "https://gyyzrobkocetrirdnwbh.supabase.co";
+    const supabaseAnonKey = "sb_publishable_5ZliPLpRl9y16Wo7LpE2Sg_itk4bX-a";
+    const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    let currentProfile = null;
+
+    async function finishAuthentication(session) {
+      if (!session) return;
+      const { data, error } = await supabaseClient.from("profiles").select("full_name, role").eq("id", session.user.id).single();
+      if (error) {
+        document.querySelector("#auth-error").textContent = "تم الدخول، لكن لم يُنشأ ملف المستخدم في profiles بعد.";
+        return;
+      }
+      currentProfile = data;
+      document.querySelector("#auth-gate").style.display = "none";
+      document.querySelector("#auth-user").style.display = "flex";
+      document.querySelector("#auth-user-name").textContent = data.full_name;
+      document.querySelector("#auth-user-role").textContent = data.role === "teacher" ? "معلمة" : data.role === "admin" ? "إدارة" : "طالبة";
+      document.body.dataset.role = data.role;
+      if (data.role === "student") {
+        document.querySelectorAll(".side-nav a").forEach((link) => { link.style.display = ["#accounts", "#payments", "#settings"].includes(link.getAttribute("href")) ? "block" : "none"; });
+        showPanel("accounts");
+        document.querySelector("[data-role-view='student-account']").click();
+      }
+    }
+
+    document.querySelector("#auth-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const errorBox = document.querySelector("#auth-error");
+      errorBox.textContent = "جاري تسجيل الدخول...";
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email: document.querySelector("#auth-email").value.trim(), password: document.querySelector("#auth-password").value });
+      if (error) { errorBox.textContent = "بيانات الدخول غير صحيحة أو الحساب غير موجود."; return; }
+      await finishAuthentication(data.session);
+    });
+    document.querySelector("#sign-out").addEventListener("click", async () => { await supabaseClient.auth.signOut(); window.location.reload(); });
+    supabaseClient.auth.getSession().then(({ data }) => finishAuthentication(data.session));
+
     const storageKey = "tebyan-students-v1";
     const scheduleDateKey = new Date().toISOString().slice(0, 10);
     const scheduleStorageKey = `tebyan-schedule-${scheduleDateKey}`;
