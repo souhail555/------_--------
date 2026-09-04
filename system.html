@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#8a6b2c">
   <title>نظام معلمة | مؤسسة تيبان</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
       --ink: #29241b;
@@ -469,19 +468,12 @@
   <div class="auth-gate" id="auth-gate">
     <div class="auth-card">
       <img src="./tebyan-logo.jpeg" alt="شعار مؤسسة تيبان">
-      <h2 id="auth-title">تسجيل الدخول</h2>
-      <p>نظام تيبان لمتابعة المعلمات والطالبات</p>
-      <div class="auth-switch"><button class="active" id="login-mode" type="button">دخول</button><button id="signup-mode" type="button">تسجيل طالبة</button></div>
-      <form class="auth-mode active" id="auth-form">
-        <label>البريد الإلكتروني<input id="auth-email" type="email" autocomplete="email" required></label>
-        <label>كلمة المرور<input id="auth-password" type="password" autocomplete="current-password" required></label>
-        <button class="panel-button" type="submit">دخول آمن</button>
-      </form>
-      <form class="auth-mode" id="signup-form">
-        <label>اسم الطالبة<input id="signup-name" type="text" required></label>
-        <label>البريد الإلكتروني<input id="signup-email" type="email" autocomplete="email" required></label>
-        <label>كلمة المرور<input id="signup-password" type="password" minlength="6" autocomplete="new-password" required></label>
-        <button class="panel-button" type="submit">إنشاء حساب طالبة</button>
+      <h2>دخول سريع للنظام</h2>
+      <p>اختاري نوع الاستخدام للبدء مباشرة</p>
+      <form id="local-login-form">
+        <label>نوع الحساب<select id="local-role"><option value="teacher">👩‍🏫 المعلمة</option><option value="student">👩‍🎓 الطالبة</option></select></label>
+        <label id="local-student-label">اسم الطالبة<input id="local-student-name" type="text" placeholder="مثال: منيرة"></label>
+        <button class="panel-button" type="submit">دخول إلى النظام</button>
       </form>
       <p class="auth-error" id="auth-error" aria-live="polite"></p>
     </div>
@@ -727,70 +719,27 @@
     </footer>
   </main>
   <script>
-    const supabaseUrl = "https://gyyzrobkocetrirdnwbh.supabase.co";
-    const supabaseAnonKey = "sb_publishable_5ZliPLpRl9y16Wo7LpE2Sg_itk4bX-a";
-    const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
-    let currentProfile = null;
-
-    async function finishAuthentication(session) {
-      if (!session) return;
-      const { data, error } = await supabaseClient.from("profiles").select("full_name, role").eq("id", session.user.id).single();
-      if (error) {
-        document.querySelector("#auth-error").textContent = "تم الدخول، لكن لم يُنشأ ملف المستخدم في profiles بعد.";
-        return;
-      }
-      currentProfile = data;
+    let localRole = sessionStorage.getItem("tebyan-local-role");
+    let localStudentName = sessionStorage.getItem("tebyan-local-student") || "";
+    function openLocalSystem() {
       document.querySelector("#auth-gate").style.display = "none";
       document.querySelector("#auth-user").style.display = "flex";
-      document.querySelector("#auth-user-name").textContent = data.full_name;
-      document.querySelector("#auth-user-role").textContent = data.role === "teacher" ? "معلمة" : data.role === "admin" ? "إدارة" : "طالبة";
-      document.body.dataset.role = data.role;
-      if (data.role === "student") {
-        document.querySelectorAll(".side-nav a").forEach((link) => { link.style.display = ["#accounts", "#payments", "#settings"].includes(link.getAttribute("href")) ? "block" : "none"; });
-        showPanel("accounts");
-        document.querySelector("[data-role-view='student-account']").click();
-      }
+      document.querySelector("#auth-user-name").textContent = localRole === "teacher" ? "بشرى اليعقوبي" : localStudentName;
+      document.querySelector("#auth-user-role").textContent = localRole === "teacher" ? "معلمة" : "طالبة";
+      document.body.dataset.role = localRole;
+      if (localRole === "student") showPanel("accounts");
     }
-
-    document.querySelector("#auth-form").addEventListener("submit", async (event) => {
+    document.querySelector("#local-role").addEventListener("change", (event) => { document.querySelector("#local-student-label").style.display = event.target.value === "student" ? "grid" : "none"; });
+    document.querySelector("#local-login-form").addEventListener("submit", (event) => {
       event.preventDefault();
-      const errorBox = document.querySelector("#auth-error");
-      errorBox.textContent = "جاري تسجيل الدخول...";
-      const { data, error } = await supabaseClient.auth.signInWithPassword({ email: document.querySelector("#auth-email").value.trim(), password: document.querySelector("#auth-password").value });
-      if (error) { errorBox.textContent = "بيانات الدخول غير صحيحة أو الحساب غير موجود."; return; }
-      await finishAuthentication(data.session);
+      localRole = document.querySelector("#local-role").value;
+      localStudentName = document.querySelector("#local-student-name").value.trim() || "طالبة";
+      sessionStorage.setItem("tebyan-local-role", localRole);
+      sessionStorage.setItem("tebyan-local-student", localStudentName);
+      openLocalSystem();
     });
-    document.querySelector("#login-mode").addEventListener("click", () => {
-      document.querySelector("#login-mode").classList.add("active");
-      document.querySelector("#signup-mode").classList.remove("active");
-      document.querySelector("#auth-form").classList.add("active");
-      document.querySelector("#signup-form").classList.remove("active");
-      document.querySelector("#auth-title").textContent = "تسجيل الدخول";
-      document.querySelector("#auth-error").textContent = "";
-    });
-    document.querySelector("#signup-mode").addEventListener("click", () => {
-      document.querySelector("#signup-mode").classList.add("active");
-      document.querySelector("#login-mode").classList.remove("active");
-      document.querySelector("#signup-form").classList.add("active");
-      document.querySelector("#auth-form").classList.remove("active");
-      document.querySelector("#auth-title").textContent = "تسجيل حساب طالبة";
-      document.querySelector("#auth-error").textContent = "";
-    });
-    document.querySelector("#signup-form").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const errorBox = document.querySelector("#auth-error");
-      errorBox.textContent = "جاري إنشاء الحساب...";
-      const { data, error } = await supabaseClient.auth.signUp({
-        email: document.querySelector("#signup-email").value.trim(),
-        password: document.querySelector("#signup-password").value,
-        options: { data: { full_name: document.querySelector("#signup-name").value.trim(), role: "student" } }
-      });
-      if (error) { errorBox.textContent = error.message; return; }
-      if (!data.session) errorBox.textContent = "تم إنشاء الحساب. افتحي بريدك الإلكتروني واضغطي رابط التأكيد ثم سجّلي الدخول.";
-      else await finishAuthentication(data.session);
-    });
-    document.querySelector("#sign-out").addEventListener("click", async () => { await supabaseClient.auth.signOut(); window.location.reload(); });
-    supabaseClient.auth.getSession().then(({ data }) => finishAuthentication(data.session));
+    document.querySelector("#sign-out").addEventListener("click", () => { sessionStorage.removeItem("tebyan-local-role"); sessionStorage.removeItem("tebyan-local-student"); window.location.reload(); });
+    if (localRole) openLocalSystem();
 
     const storageKey = "tebyan-students-v1";
     const scheduleDateKey = new Date().toISOString().slice(0, 10);
@@ -1047,6 +996,11 @@
       document.querySelector("#teacher-students-list").innerHTML = students.map((student) => `<div class="feature-row"><div><strong>${escapeHtml(student.name)}</strong><small>${escapeHtml(student.studentId)} · بشرى اليعقوبي</small></div><span class="account-badge">${escapeHtml(student.status === "done" ? "منجزة" : "قيد المتابعة")}</span></div>`).join("");
       const select = document.querySelector("#student-account-select");
       select.innerHTML = students.map((student) => `<option value="${escapeHtml(student.studentId)}">${escapeHtml(student.name)} (${escapeHtml(student.studentId)})</option>`).join("");
+      if (localRole === "student") {
+        const selectedStudent = students.find((student) => student.name === localStudentName);
+        if (selectedStudent) select.value = selectedStudent.studentId;
+        document.querySelector("[data-role-view='student-account']").click();
+      }
       document.querySelector("#admin-student-count").textContent = `${students.length} طالبة`;
       renderStudentAccount(select.value || students[0]?.studentId);
     }
