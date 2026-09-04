@@ -736,7 +736,14 @@
       document.querySelector("#auth-user-name").textContent = localRole === "teacher" ? "بشرى اليعقوبي" : localStudentName;
       document.querySelector("#auth-user-role").textContent = localRole === "teacher" ? "معلمة" : "طالبة";
       document.body.dataset.role = localRole;
-      if (localRole === "student") showPanel("accounts");
+      if (localRole === "student") {
+        document.querySelectorAll(".side-nav a").forEach((link) => {
+          const visibleForStudent = ["#dashboard", "#accounts", "#payments"].includes(link.getAttribute("href"));
+          link.style.display = visibleForStudent ? "block" : "none";
+        });
+        showPanel("accounts");
+        document.querySelector("[data-role-view='student-account']").click();
+      }
     }
     document.querySelector("#local-role").addEventListener("change", (event) => {
       const isStudent = event.target.value === "student";
@@ -763,7 +770,6 @@
       openLocalSystem();
     });
     document.querySelector("#sign-out").addEventListener("click", () => { sessionStorage.removeItem("tebyan-local-role"); sessionStorage.removeItem("tebyan-local-student"); window.location.reload(); });
-    if (localRole) openLocalSystem();
 
     const storageKey = "tebyan-students-v1";
     const scheduleDateKey = new Date().toISOString().slice(0, 10);
@@ -1017,16 +1023,21 @@
     }
 
     function renderAccounts() {
-      document.querySelector("#teacher-students-list").innerHTML = students.map((student) => `<div class="feature-row"><div><strong>${escapeHtml(student.name)}</strong><small>${escapeHtml(student.studentId)} · بشرى اليعقوبي</small></div><span class="account-badge">${escapeHtml(student.status === "done" ? "منجزة" : "قيد المتابعة")}</span></div>`).join("");
+      const isStudent = localRole === "student";
+      const visibleStudents = isStudent ? students.filter((student) => student.name === localStudentName) : students;
+      document.querySelector("#teacher-students-list").innerHTML = visibleStudents.map((student) => `<div class="feature-row"><div><strong>${escapeHtml(student.name)}</strong><small>${escapeHtml(student.studentId)} · بشرى اليعقوبي</small></div><span class="account-badge">${escapeHtml(student.status === "done" ? "منجزة" : "قيد المتابعة")}</span></div>`).join("");
       const select = document.querySelector("#student-account-select");
-      select.innerHTML = students.map((student) => `<option value="${escapeHtml(student.studentId)}">${escapeHtml(student.name)} (${escapeHtml(student.studentId)})</option>`).join("");
-      if (localRole === "student") {
-        const selectedStudent = students.find((student) => student.name === localStudentName);
-        if (selectedStudent) select.value = selectedStudent.studentId;
-        document.querySelector("[data-role-view='student-account']").click();
-      }
+      select.innerHTML = visibleStudents.map((student) => `<option value="${escapeHtml(student.studentId)}">${escapeHtml(student.name)} (${escapeHtml(student.studentId)})</option>`).join("");
+      const selectedStudent = visibleStudents[0];
+      if (selectedStudent) select.value = selectedStudent.studentId;
+      document.querySelector("#teacher-account").style.display = isStudent ? "none" : "block";
+      document.querySelector("#student-account-select").style.display = isStudent ? "none" : "block";
+      document.querySelector(".teacher-editor").style.display = isStudent ? "none" : "grid";
+      document.querySelector("#student-account").classList.toggle("active", isStudent);
+      document.querySelector("#teacher-account").classList.toggle("active", !isStudent);
+      document.querySelectorAll("[data-role-view]").forEach((button) => { button.style.display = isStudent && button.dataset.roleView !== "student-account" ? "none" : "block"; });
       document.querySelector("#admin-student-count").textContent = `${students.length} طالبة`;
-      renderStudentAccount(select.value || students[0]?.studentId);
+      renderStudentAccount(selectedStudent?.studentId || students[0]?.studentId);
     }
 
     function renderStudentAccount(studentId) {
@@ -1217,6 +1228,7 @@
     renderSchedule();
     render();
     renderAccounts();
+    if (localRole) openLocalSystem();
     if (localStorage.getItem("tebyan-password") && sessionStorage.getItem("tebyan-unlocked") !== "yes") {
       const enteredPassword = window.prompt("أدخلي كلمة مرور المعلمة لفتح النظام:");
       if (enteredPassword === localStorage.getItem("tebyan-password")) sessionStorage.setItem("tebyan-unlocked", "yes");
