@@ -344,6 +344,8 @@
     .payment-status-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 10px 12px; background: #faf9fd; border: 1px solid #e6e1ef; border-radius: 5px; }
     .payment-status-row strong { color: #55436a; font-size: .8rem; }
     .payment-status-row select { padding: 6px; font: inherit; font-size: .72rem; border: 1px solid #ded6e8; border-radius: 4px; }
+    .whatsapp-button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; color: #fff; text-decoration: none; font: inherit; font-size: .8rem; font-weight: 700; background: #1caa59; border-radius: 4px; }
+    .whatsapp-button:hover { background: #148b47; }
     .auth-gate { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(29, 19, 48, .96); }
     .auth-card { width: min(420px, 100%); padding: 28px; text-align: right; background: #fff; border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
     .auth-card img { display: block; width: 82px; height: 82px; object-fit: cover; margin: 0 auto 12px; border-radius: 50%; }
@@ -632,6 +634,7 @@
         <div class="report-actions">
           <button class="panel-button" id="report-csv" type="button">📊 تحميل CSV</button>
           <button class="panel-button secondary" id="report-print" type="button">🖨️ طباعة التقرير</button>
+          <button class="panel-button" id="report-whatsapp" type="button">☏ إرسال عبر واتساب</button>
         </div>
       </section>
       <section class="workspace-panel" id="settings" aria-label="الإعدادات">
@@ -744,6 +747,7 @@
     <footer>
       <span>واتساب المؤسسة:</span>
       <strong>0060137554520</strong>
+      <a class="whatsapp-button" href="https://wa.me/0060137554520?text=%D8%A7%D9%84%D8%B3%D9%84%D8%A7%D9%85%20%D8%B9%D9%84%D9%8A%D9%83%D9%85%D8%8C%20%D8%A3%D8%B1%D8%BA%D8%A8%20%D8%A8%D8%A7%D9%84%D8%A7%D8%B3%D8%AA%D9%81%D8%B3%D8%A7%D8%B1%20%D8%B9%D9%86%20%D9%86%D8%B8%D8%A7%D9%85%20%D8%AA%D8%A8%D9%8A%D8%A7%D9%86" target="_blank" rel="noopener">💬 تواصل معنا</a>
       <button class="print-button" type="button" id="print-report">🖨️ طباعة التقرير</button>
       <button class="print-button download-button" type="button" id="download-report">📊 تحميل التقرير</button>
     </footer>
@@ -970,7 +974,8 @@
       }
       if (event.target.matches("[data-action='message']")) {
         const message = `السلام عليكم، نود تذكيركم بمتابعة الطالبة ${student.name}. نشكركم على تعاونكم.`;
-        window.open(`https://wa.me/${String(student.phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(message)}`, "_blank");
+        const recipient = String(student.phone || "").replace(/\D/g, "") || "0060137554520";
+        window.open(`https://wa.me/${recipient}?text=${encodeURIComponent(message)}`, "_blank");
       }
     });
 
@@ -1259,6 +1264,11 @@
 
     document.querySelector("#report-csv").addEventListener("click", downloadCsv);
     document.querySelector("#report-print").addEventListener("click", () => window.print());
+    document.querySelector("#report-whatsapp").addEventListener("click", () => {
+      const done = students.filter((student) => student.status === "done").length;
+      const report = `السلام عليكم، هذا ملخص متابعة طالبات مؤسسة تيبان بتاريخ ${document.querySelector("#current-date").textContent}: إجمالي الطالبات ${students.length}، تم الإنجاز ${done}، وقيد الإنجاز ${students.filter((student) => student.status === "progress").length}.`;
+      window.open(`https://wa.me/0060137554520?text=${encodeURIComponent(report)}`, "_blank");
+    });
     document.querySelector("#monthly-csv").addEventListener("click", downloadCsv);
     document.querySelector("#monthly-print").addEventListener("click", () => window.print());
     document.querySelector("#save-settings").addEventListener("click", () => {
