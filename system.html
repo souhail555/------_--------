@@ -476,7 +476,7 @@
           <label>اسم المستخدم<input id="teacher-username" type="text" autocomplete="username" placeholder="اسم مستخدم المعلمة"></label>
           <label>كلمة المرور<input id="teacher-password" type="password" autocomplete="current-password" placeholder="كلمة مرور المعلمة"></label>
         </div>
-        <label id="local-student-label">اسم الطالبة<input id="local-student-name" type="text" placeholder="مثال: منيرة"></label>
+        <label id="local-student-label">اختاري اسمك<select id="local-student-name" required><option value="">اختاري الطالبة</option></select></label>
         <button class="panel-button" type="submit">دخول إلى النظام</button>
       </form>
       <p class="auth-error" id="auth-error" aria-live="polite"></p>
@@ -738,9 +738,14 @@
       document.body.dataset.role = localRole;
       if (localRole === "student") {
         document.querySelectorAll(".side-nav a").forEach((link) => {
-          const visibleForStudent = ["#dashboard", "#accounts", "#payments"].includes(link.getAttribute("href"));
+          const visibleForStudent = ["#accounts", "#payments"].includes(link.getAttribute("href"));
           link.style.display = visibleForStudent ? "block" : "none";
         });
+        document.querySelector("#dashboard").style.display = "none";
+        document.querySelector(".stats").style.display = "none";
+        document.querySelector(".tools").style.display = "none";
+        document.querySelector(".table-wrap").style.display = "none";
+        document.querySelector("#student-form").style.display = "none";
         showPanel("accounts");
         document.querySelector("[data-role-view='student-account']").click();
       }
@@ -762,7 +767,8 @@
         }
         localStudentName = "";
       } else {
-        localStudentName = document.querySelector("#local-student-name").value.trim() || "طالبة";
+        localStudentName = document.querySelector("#local-student-name").value.trim();
+        if (!localStudentName) { document.querySelector("#auth-error").textContent = "اختاري اسم الطالبة أولًا."; return; }
       }
       sessionStorage.setItem("tebyan-local-role", localRole);
       sessionStorage.setItem("tebyan-local-student", localStudentName);
@@ -1025,6 +1031,11 @@
     function renderAccounts() {
       const isStudent = localRole === "student";
       const visibleStudents = isStudent ? students.filter((student) => student.name === localStudentName) : students;
+      const loginStudentSelect = document.querySelector("#local-student-name");
+      if (loginStudentSelect) {
+        loginStudentSelect.innerHTML = '<option value="">اختاري الطالبة</option>' + students.map((student) => `<option value="${escapeHtml(student.name)}">${escapeHtml(student.name)}</option>`).join("");
+        if (localStudentName) loginStudentSelect.value = localStudentName;
+      }
       document.querySelector("#teacher-students-list").innerHTML = visibleStudents.map((student) => `<div class="feature-row"><div><strong>${escapeHtml(student.name)}</strong><small>${escapeHtml(student.studentId)} · بشرى اليعقوبي</small></div><span class="account-badge">${escapeHtml(student.status === "done" ? "منجزة" : "قيد المتابعة")}</span></div>`).join("");
       const select = document.querySelector("#student-account-select");
       select.innerHTML = visibleStudents.map((student) => `<option value="${escapeHtml(student.studentId)}">${escapeHtml(student.name)} (${escapeHtml(student.studentId)})</option>`).join("");
@@ -1041,7 +1052,7 @@
     }
 
     function renderStudentAccount(studentId) {
-      const student = students.find((item) => item.studentId === studentId) || students[0];
+      const student = students.find((item) => item.studentId === studentId && (!localRole || localRole === "teacher" || item.name === localStudentName));
       if (!student) return;
       const lesson = studentLessons[student.studentId] || {};
       document.querySelector("#student-account-content").innerHTML = `<div class="account-grid"><div class="account-item"><label>Student ID</label><strong>${escapeHtml(student.studentId)}</strong></div><div class="account-item"><label>الاسم</label><strong>${escapeHtml(student.name)}</strong></div><div class="account-item"><label>الحفظ</label><strong>${escapeHtml(lesson.newMemorization || "لم يحدد بعد")}</strong></div><div class="account-item"><label>المراجعة</label><strong>${escapeHtml(lesson.review || "لم يحدد بعد")}</strong></div><div class="account-item"><label>التقييم</label><strong>${escapeHtml(lesson.evaluation || "لم يحدد بعد")}</strong></div><div class="account-item"><label>الحصة القادمة</label><strong>${escapeHtml(lesson.nextLesson || "لم يحدد بعد")}</strong></div></div><p class="student-private-note">هذه الصفحة تعرض بيانات ${escapeHtml(student.name)} فقط، ولا تعرض بيانات الطالبات الأخريات.</p>`;
