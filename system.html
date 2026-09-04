@@ -472,6 +472,10 @@
       <p>اختاري نوع الاستخدام للبدء مباشرة</p>
       <form id="local-login-form">
         <label>نوع الحساب<select id="local-role"><option value="teacher">👩‍🏫 المعلمة</option><option value="student">👩‍🎓 الطالبة</option></select></label>
+        <div id="teacher-credentials">
+          <label>اسم المستخدم<input id="teacher-username" type="text" autocomplete="username" placeholder="اسم مستخدم المعلمة"></label>
+          <label>كلمة المرور<input id="teacher-password" type="password" autocomplete="current-password" placeholder="كلمة مرور المعلمة"></label>
+        </div>
         <label id="local-student-label">اسم الطالبة<input id="local-student-name" type="text" placeholder="مثال: منيرة"></label>
         <button class="panel-button" type="submit">دخول إلى النظام</button>
       </form>
@@ -620,6 +624,7 @@
         <div class="settings-grid">
           <label class="settings-field">اسم النظام<input id="system-name-input" type="text" value="نظام معلمة"></label>
           <label class="settings-field">اللون الرئيسي<select id="accent-input"><option value="purple">بنفسجي ملكي</option><option value="gold">ذهبي قرآني</option><option value="green">أخضر زيتوني</option></select></label>
+          <label class="settings-field">اسم مستخدم المعلمة<input id="teacher-username-input" type="text" placeholder="bushra"></label>
           <label class="settings-field">كلمة مرور المعلمة<input id="password-input" type="password" placeholder="اختياري للحماية"></label>
           <label class="settings-field">الوضع الليلي<select id="theme-input"><option value="light">الوضع الفاتح</option><option value="dark">الوضع الليلي</option></select></label>
         </div>
@@ -719,8 +724,12 @@
     </footer>
   </main>
   <script>
+    const defaultTeacherUsername = "bushra";
+    const defaultTeacherPassword = "Tebyan2026";
     let localRole = sessionStorage.getItem("tebyan-local-role");
     let localStudentName = sessionStorage.getItem("tebyan-local-student") || "";
+    const teacherUsername = () => localStorage.getItem("tebyan-teacher-username") || defaultTeacherUsername;
+    const teacherPassword = () => localStorage.getItem("tebyan-teacher-password") || defaultTeacherPassword;
     function openLocalSystem() {
       document.querySelector("#auth-gate").style.display = "none";
       document.querySelector("#auth-user").style.display = "flex";
@@ -729,13 +738,28 @@
       document.body.dataset.role = localRole;
       if (localRole === "student") showPanel("accounts");
     }
-    document.querySelector("#local-role").addEventListener("change", (event) => { document.querySelector("#local-student-label").style.display = event.target.value === "student" ? "grid" : "none"; });
+    document.querySelector("#local-role").addEventListener("change", (event) => {
+      const isStudent = event.target.value === "student";
+      document.querySelector("#local-student-label").style.display = isStudent ? "grid" : "none";
+      document.querySelector("#teacher-credentials").style.display = isStudent ? "none" : "block";
+    });
     document.querySelector("#local-login-form").addEventListener("submit", (event) => {
       event.preventDefault();
       localRole = document.querySelector("#local-role").value;
-      localStudentName = document.querySelector("#local-student-name").value.trim() || "طالبة";
+      if (localRole === "teacher") {
+        const username = document.querySelector("#teacher-username").value.trim();
+        const password = document.querySelector("#teacher-password").value;
+        if (username !== teacherUsername() || password !== teacherPassword()) {
+          document.querySelector("#auth-error").textContent = "اسم المستخدم أو كلمة المرور غير صحيحة.";
+          return;
+        }
+        localStudentName = "";
+      } else {
+        localStudentName = document.querySelector("#local-student-name").value.trim() || "طالبة";
+      }
       sessionStorage.setItem("tebyan-local-role", localRole);
       sessionStorage.setItem("tebyan-local-student", localStudentName);
+      document.querySelector("#auth-error").textContent = "";
       openLocalSystem();
     });
     document.querySelector("#sign-out").addEventListener("click", () => { sessionStorage.removeItem("tebyan-local-role"); sessionStorage.removeItem("tebyan-local-student"); window.location.reload(); });
@@ -1117,16 +1141,16 @@
       localStorage.setItem("tebyan-system-name", document.querySelector("#system-name-input").value.trim() || "نظام معلمة");
       localStorage.setItem("tebyan-accent", document.querySelector("#accent-input").value);
       localStorage.setItem("tebyan-theme", document.querySelector("#theme-input").value);
-      localStorage.setItem("tebyan-password", document.querySelector("#password-input").value);
+      localStorage.setItem("tebyan-teacher-username", document.querySelector("#teacher-username-input").value.trim() || defaultTeacherUsername);
+      localStorage.setItem("tebyan-teacher-password", document.querySelector("#password-input").value || defaultTeacherPassword);
       document.querySelector(".page-title").textContent = localStorage.getItem("tebyan-system-name");
       document.body.dataset.accent = document.querySelector("#accent-input").value;
       document.body.classList.toggle("dark-mode", document.querySelector("#theme-input").value === "dark");
       document.querySelector("#settings-message").textContent = "تم حفظ الإعدادات بنجاح.";
     });
     document.querySelector("#lock-system").addEventListener("click", () => {
-      const password = localStorage.getItem("tebyan-password");
-      if (!password) { document.querySelector("#settings-message").textContent = "احفظي كلمة مرور أولًا ثم استخدمي القفل."; return; }
-      sessionStorage.removeItem("tebyan-unlocked");
+      sessionStorage.removeItem("tebyan-local-role");
+      sessionStorage.removeItem("tebyan-local-student");
       window.location.reload();
     });
     document.querySelector("#reset-data").addEventListener("click", () => {
@@ -1182,8 +1206,11 @@
     document.querySelector(".page-title").textContent = localStorage.getItem("tebyan-system-name") || "نظام معلمة";
     document.querySelector("#system-name-input").value = localStorage.getItem("tebyan-system-name") || "نظام معلمة";
     document.querySelector("#accent-input").value = localStorage.getItem("tebyan-accent") || "purple";
-    document.querySelector("#password-input").value = localStorage.getItem("tebyan-password") || "";
+    document.querySelector("#teacher-username-input").value = teacherUsername();
+    document.querySelector("#password-input").value = teacherPassword();
     document.querySelector("#theme-input").value = localStorage.getItem("tebyan-theme") || "light";
+    document.querySelector("#local-student-label").style.display = "none";
+    document.querySelector("#teacher-credentials").style.display = "block";
     document.body.dataset.accent = document.querySelector("#accent-input").value;
     document.body.classList.toggle("dark-mode", document.querySelector("#theme-input").value === "dark");
     saveStudents();
