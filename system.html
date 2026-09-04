@@ -260,6 +260,7 @@
     .student-name { font-weight: 700; color: #40371f; }
     .researches { direction: ltr; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
     .note-input { width: 100%; min-width: 150px; padding: 7px 9px; color: var(--ink); font: inherit; font-size: 0.85rem; background: #fffdf8; border: 1px solid #e3d7bd; border-radius: 3px; }
+    .phone-cell { direction: ltr; color: #5b4274; font-size: .82rem; white-space: nowrap; }
 
     .student-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-top: 20px; padding: 18px; background: var(--gold-pale); border: 1px solid var(--line); border-radius: 5px; }
     .add-button { padding: 8px 14px; color: #fffdf6; font: inherit; font-weight: 700; background: var(--gold-deep); border: 0; border-radius: 4px; cursor: pointer; }
@@ -593,6 +594,7 @@
             <tr>
               <th scope="col">الرمز</th>
               <th scope="col">اسم الطالبة</th>
+              <th scope="col">رقم الهاتف</th>
               <th scope="col">الأبحاث</th>
               <th scope="col">ملاحظات</th>
               <th scope="col">الحالة</th>
@@ -929,7 +931,7 @@
       const visibleStudents = students.filter((student) => student.name.toLowerCase().includes(search) && (filter === "all" || student.status === filter));
       tableBody.innerHTML = visibleStudents.map((student) => {
         const status = statuses.find((item) => item.className === student.status) || statuses[0];
-        return `<tr data-id="${escapeHtml(student.id)}"><td class="symbol">${student.symbol}</td><td class="student-name">${escapeHtml(student.name)}</td><td class="researches">${escapeHtml(student.researches)}</td><td><input class="note-input" type="text" value="${escapeHtml(student.note)}" placeholder="أضيفي ملاحظة" aria-label="ملاحظة ${escapeHtml(student.name)}"></td><td class="status-control"><button class="status ${status.className}" type="button">${status.text}</button><div class="status-menu">${statuses.map((item) => `<button class="status-option" type="button" data-status="${item.className}">${item.text}</button>`).join("")}</div></td><td><div class="row-actions"><button class="row-action" type="button" data-action="edit">✎ تعديل</button><button class="row-action" type="button" data-action="message">☏</button><button class="row-action delete" type="button" data-action="delete">حذف</button></div></td></tr>`;
+        return `<tr data-id="${escapeHtml(student.id)}"><td class="symbol">${student.symbol}</td><td class="student-name">${escapeHtml(student.name)}</td><td class="phone-cell">${escapeHtml(student.phone || "غير مضاف")}</td><td class="researches">${escapeHtml(student.researches)}</td><td><input class="note-input" type="text" value="${escapeHtml(student.note)}" placeholder="أضيفي ملاحظة" aria-label="ملاحظة ${escapeHtml(student.name)}"></td><td class="status-control"><button class="status ${status.className}" type="button">${status.text}</button><div class="status-menu">${statuses.map((item) => `<button class="status-option" type="button" data-status="${item.className}">${item.text}</button>`).join("")}</div></td><td><div class="row-actions"><button class="row-action" type="button" data-action="edit">✎ تعديل</button><button class="row-action" type="button" data-action="message">☏</button><button class="row-action delete" type="button" data-action="delete">حذف</button></div></td></tr>`;
       }).join("");
       document.querySelector("#total-count").textContent = students.length;
       document.querySelector("#side-total").textContent = students.length;
@@ -957,12 +959,16 @@
       }
       if (event.target.matches("[data-action='edit']")) {
         const name = window.prompt("اسم الطالبة:", student.name);
-        const researches = name === null ? null : window.prompt("أرقام الأبحاث:", student.researches);
-        if (name === null || researches === null) return;
+        const phone = name === null ? null : window.prompt("رقم هاتف الطالبة:", student.phone || "");
+        const researches = phone === null ? null : window.prompt("أرقام الأبحاث:", student.researches);
+        const level = researches === null ? null : window.prompt("المستوى أو الجزء الحالي:", student.level || "");
+        if (name === null || phone === null || researches === null || level === null) return;
         student.name = name.trim() || student.name;
+        student.phone = phone.trim();
         student.researches = researches.trim() || student.researches;
+        student.level = level.trim();
         saveStudents();
-        logActivity(`تم حفظ تعديل بيانات الطالبة ${student.name}.`);
+        logActivity(`تم حفظ تعديل بيانات ${student.name} ورقم هاتفها.`);
         render();
       }
       if (event.target.matches("[data-action='delete']")) {
@@ -1251,9 +1257,9 @@
     });
 
     function downloadCsv() {
-      const csv = ["الرمز,اسم الطالبة,الأبحاث,الحالة,الملاحظات", ...students.map((student) => {
+      const csv = ["الرمز,اسم الطالبة,رقم الهاتف,الأبحاث,الحالة,الملاحظات", ...students.map((student) => {
         const status = statuses.find((item) => item.className === student.status);
-        return [student.symbol, student.name, student.researches, status.text, student.note].map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",");
+        return [student.symbol, student.name, student.phone || "", student.researches, status.text, student.note].map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",");
       })].join("\n");
       const link = document.createElement("a");
       link.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }));
