@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#8a6b2c">
+  <link rel="manifest" href="./manifest.webmanifest">
   <title>نظام معلمة | مؤسسة تيبان</title>
   <style>
     :root {
@@ -331,6 +332,18 @@
     .payment-details { color: #253c69; font-size: .85rem; line-height: 1.9; }
     .payment-details strong { display: inline-block; min-width: 105px; }
     .student-private-note { margin-top: 14px; padding: 11px 13px; color: #665773; background: #fff8e8; border-right: 3px solid #d5a33b; border-radius: 4px; font-size: .78rem; }
+    .history-list { display: grid; gap: 8px; max-height: 260px; overflow: auto; }
+    .history-item { padding: 10px 12px; color: #655975; background: #faf9fd; border-right: 3px solid #7650a1; border-radius: 4px; font-size: .76rem; }
+    .history-item time { display: block; margin-top: 4px; color: #a298aa; font-size: .67rem; }
+    .assignment-list { display: grid; gap: 9px; }
+    .assignment-item { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 11px 12px; background: #faf9fd; border: 1px solid #e6e1ef; border-radius: 5px; }
+    .assignment-item strong { color: #55436a; font-size: .8rem; }
+    .assignment-item small { display: block; margin-top: 4px; color: #968ba0; font-size: .69rem; }
+    .assignment-item select { padding: 6px; font: inherit; font-size: .72rem; border: 1px solid #ded6e8; border-radius: 4px; }
+    .payment-status { display: grid; gap: 10px; }
+    .payment-status-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 10px 12px; background: #faf9fd; border: 1px solid #e6e1ef; border-radius: 5px; }
+    .payment-status-row strong { color: #55436a; font-size: .8rem; }
+    .payment-status-row select { padding: 6px; font: inherit; font-size: .72rem; border: 1px solid #ded6e8; border-radius: 4px; }
     .auth-gate { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(29, 19, 48, .96); }
     .auth-card { width: min(420px, 100%); padding: 28px; text-align: right; background: #fff; border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
     .auth-card img { display: block; width: 82px; height: 82px; object-fit: cover; margin: 0 auto 12px; border-radius: 50%; }
@@ -498,10 +511,12 @@
         <a href="#session-summary">◷ ملخص الحصة</a>
         <a href="#attendance">✓ الحضور والغياب</a>
         <a href="#memorization">📖 الحفظ والتسميع</a>
+        <a href="#assignments">📝 الواجبات</a>
         <a href="#monthly-report">▥ التقرير الشهري</a>
         <a href="#alerts">⚠ التنبيهات</a>
         <a href="#accounts">🔐 الحسابات والربط</a>
         <a href="#payments">💳 دفع الرسوم</a>
+        <a href="#history">◴ سجل التطور</a>
         <a href="#backup">⇩ النسخ الاحتياطي</a>
         <a href="#settings">⚙ الإعدادات</a>
       </nav>
@@ -665,6 +680,11 @@
         <div class="feature-list" id="memorization-list"></div>
         <button class="panel-button" id="save-memorization" type="button">💾 حفظ المتابعة</button>
       </section>
+      <section class="workspace-panel" id="assignments" aria-label="الواجبات">
+        <h3>📝 الواجبات والتسليم</h3>
+        <div class="assignment-list" id="assignment-list"></div>
+        <div class="compact-form" style="margin-top:14px"><select id="assignment-student" aria-label="الطالبة للواجب"></select><input id="assignment-title" type="text" placeholder="عنوان الواجب"><input id="assignment-due" type="text" placeholder="موعد التسليم"><textarea id="assignment-details" placeholder="تفاصيل الواجب"></textarea><button class="panel-button" id="add-assignment" type="button">＋ إضافة واجب</button></div>
+      </section>
       <section class="workspace-panel" id="monthly-report" aria-label="التقرير الشهري">
         <h3>▥ التقرير الشهري</h3>
         <div class="report-grid"><div class="report-item"><strong id="month-attendance">0%</strong>نسبة الحضور</div><div class="report-item"><strong id="month-completion">0%</strong>نسبة الإنجاز</div><div class="report-item"><strong id="month-notes">0</strong>ملاحظة</div><div class="report-item"><strong id="month-excellent">0</strong>متميزات</div></div>
@@ -706,6 +726,11 @@
           <img src="./payment-details.png" alt="بيانات دفع الرسوم عبر Touch 'n Go eWallet" onerror="this.style.display='none'">
           <div class="payment-details"><strong>طريقة الدفع:</strong> Touch 'n Go eWallet<br><strong>اسم الحساب:</strong> Yakoubi Bouchra<br><strong>رقم الحساب:</strong> 120578924834<br><button class="panel-button" id="copy-payment" type="button">⧉ نسخ بيانات الدفع</button><p class="settings-message" id="payment-message"></p></div>
         </div>
+        <div class="payment-status" id="payment-status-list" style="margin-top:14px"></div>
+      </section>
+      <section class="workspace-panel" id="history" aria-label="سجل التطور">
+        <h3>◴ سجل التطور والتعديلات</h3>
+        <div class="history-list" id="history-list"></div>
       </section>
       <section class="workspace-panel" id="backup" aria-label="النسخ الاحتياطي">
         <h3>⇩ النسخ الاحتياطي والاسترجاع</h3>
@@ -738,7 +763,7 @@
       document.body.dataset.role = localRole;
       if (localRole === "student") {
         document.querySelectorAll(".side-nav a").forEach((link) => {
-          const visibleForStudent = ["#accounts", "#payments"].includes(link.getAttribute("href"));
+          const visibleForStudent = ["#accounts", "#payments", "#assignments"].includes(link.getAttribute("href"));
           link.style.display = visibleForStudent ? "block" : "none";
         });
         document.querySelector("#dashboard").style.display = "none";
@@ -816,6 +841,9 @@
     let students = (JSON.parse(localStorage.getItem(storageKey) || "null") || initialStudents).map((student, index) => ({ phone: "", level: "", teacherId: "TCH001", studentId: `ST${String(index + 1).padStart(3, "0")}`, note: "", ...student }));
     const lessonStorageKey = "tebyan-student-lessons-v1";
     let studentLessons = JSON.parse(localStorage.getItem(lessonStorageKey) || "{}");
+    let assignments = JSON.parse(localStorage.getItem("tebyan-assignments-v1") || "[]");
+    let paymentStatuses = JSON.parse(localStorage.getItem("tebyan-payment-status-v1") || "{}");
+    let activityHistory = JSON.parse(localStorage.getItem("tebyan-history-v1") || "[]");
     const attendanceKey = `tebyan-attendance-${scheduleDateKey}`;
     const memorizationKey = `tebyan-memorization-${scheduleDateKey}`;
     let attendance = JSON.parse(localStorage.getItem(attendanceKey) || "null") || {};
@@ -829,6 +857,35 @@
     function saveStudents() { localStorage.setItem(storageKey, JSON.stringify(students)); }
     function saveLessons() { localStorage.setItem(lessonStorageKey, JSON.stringify(studentLessons)); }
     function saveSchedule() { localStorage.setItem(scheduleStorageKey, JSON.stringify(todaySchedule)); }
+    function logActivity(message) {
+      activityHistory.unshift({ message, date: new Date().toLocaleString("ar") });
+      activityHistory = activityHistory.slice(0, 100);
+      localStorage.setItem("tebyan-history-v1", JSON.stringify(activityHistory));
+    }
+    function renderHistory() {
+      const list = document.querySelector("#history-list");
+      if (!list) return;
+      list.innerHTML = activityHistory.length ? activityHistory.map((item) => `<div class="history-item">${escapeHtml(item.message)}<time>${escapeHtml(item.date)}</time></div>`).join("") : '<div class="alert-item success">لا توجد تعديلات مسجلة بعد.</div>';
+    }
+    function renderAssignments() {
+      const list = document.querySelector("#assignment-list");
+      if (!list) return;
+      const visibleAssignments = localRole === "student" ? assignments.filter((item) => item.studentName === localStudentName) : assignments;
+      list.innerHTML = visibleAssignments.length ? visibleAssignments.map((item) => `<div class="assignment-item"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.details)} · التسليم: ${escapeHtml(item.due)}</small></div><select data-assignment-index="${assignments.indexOf(item)}"><option value="pending">لم يُسلّم</option><option value="submitted">تم التسليم</option></select></div>`).join("") : '<div class="schedule-empty">لا توجد واجبات مضافة.</div>';
+      document.querySelectorAll("[data-assignment-index]").forEach((select) => { select.value = assignments[select.dataset.assignmentIndex].status || "pending"; });
+      const assignmentStudent = document.querySelector("#assignment-student");
+      if (assignmentStudent) {
+        assignmentStudent.innerHTML = students.map((student) => `<option value="${escapeHtml(student.name)}">${escapeHtml(student.name)}</option>`).join("");
+        assignmentStudent.style.display = localRole === "student" ? "none" : "block";
+      }
+    }
+    function renderPaymentStatuses() {
+      const list = document.querySelector("#payment-status-list");
+      if (!list) return;
+      const visibleStudents = localRole === "student" ? students.filter((student) => student.name === localStudentName) : students;
+      list.innerHTML = visibleStudents.map((student) => `<div class="payment-status-row"><strong>${escapeHtml(student.name)}</strong><span class="account-badge">الرسوم</span><select data-payment-id="${escapeHtml(student.studentId)}"><option value="pending">غير مدفوعة</option><option value="paid">مدفوعة</option><option value="review">قيد التحقق</option></select></div>`).join("");
+      document.querySelectorAll("[data-payment-id]").forEach((select) => { select.value = paymentStatuses[select.dataset.paymentId] || "pending"; });
+    }
 
     function renderSchedule() {
       const container = document.querySelector("#today-schedule");
@@ -950,6 +1007,30 @@
       document.querySelectorAll("[data-memorization-id]").forEach((select) => { memorization[select.dataset.memorizationId] = select.value; });
       localStorage.setItem(memorizationKey, JSON.stringify(memorization));
       document.querySelector("#save-memorization").textContent = "✓ تم حفظ المتابعة";
+      logActivity("تم حفظ متابعة الحفظ والتسميع.");
+    });
+    document.querySelector("#add-assignment").addEventListener("click", () => {
+      const title = document.querySelector("#assignment-title").value.trim();
+      if (!title) return;
+      assignments.push({ studentName: document.querySelector("#assignment-student").value, title, due: document.querySelector("#assignment-due").value.trim() || "غير محدد", details: document.querySelector("#assignment-details").value.trim() || "بدون تفاصيل", status: "pending" });
+      localStorage.setItem("tebyan-assignments-v1", JSON.stringify(assignments));
+      document.querySelector("#assignment-title").value = "";
+      document.querySelector("#assignment-due").value = "";
+      document.querySelector("#assignment-details").value = "";
+      logActivity(`تمت إضافة واجب: ${title}`);
+      renderAssignments();
+    });
+    document.querySelector("#assignment-list").addEventListener("change", (event) => {
+      if (!event.target.matches("[data-assignment-index]")) return;
+      assignments[event.target.dataset.assignmentIndex].status = event.target.value;
+      localStorage.setItem("tebyan-assignments-v1", JSON.stringify(assignments));
+      logActivity(`تم تحديث حالة الواجب: ${assignments[event.target.dataset.assignmentIndex].title}`);
+    });
+    document.querySelector("#payment-status-list").addEventListener("change", (event) => {
+      if (!event.target.matches("[data-payment-id]")) return;
+      paymentStatuses[event.target.dataset.paymentId] = event.target.value;
+      localStorage.setItem("tebyan-payment-status-v1", JSON.stringify(paymentStatuses));
+      logActivity(`تم تحديث حالة الرسوم للمعرف ${event.target.dataset.paymentId}.`);
     });
     function showPanel(panelId) {
       if (panelId === "dashboard") {
@@ -967,6 +1048,9 @@
       if (panelId === "alerts") updateAlerts();
       if (panelId === "monthly-report") updateMonthlyReport();
       if (panelId === "accounts") renderAccounts();
+      if (panelId === "assignments") renderAssignments();
+      if (panelId === "payments") renderPaymentStatuses();
+      if (panelId === "history") renderHistory();
       document.querySelector(`#${panelId}`).scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
@@ -1240,6 +1324,7 @@
     render();
     renderAccounts();
     if (localRole) openLocalSystem();
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("./service-worker.js").catch(() => {});
     if (localStorage.getItem("tebyan-password") && sessionStorage.getItem("tebyan-unlocked") !== "yes") {
       const enteredPassword = window.prompt("أدخلي كلمة مرور المعلمة لفتح النظام:");
       if (enteredPassword === localStorage.getItem("tebyan-password")) sessionStorage.setItem("tebyan-unlocked", "yes");

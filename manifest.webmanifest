@@ -1,0 +1,11 @@
+{
+  "name": "نظام معلمة تيبان",
+  "short_name": "نظام تيبان",
+  "start_url": "./system.html",
+  "display": "standalone",
+  "background_color": "#f4f3fb",
+  "theme_color": "#302052",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": []
+}
