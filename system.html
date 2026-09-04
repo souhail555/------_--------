@@ -779,6 +779,9 @@
       const isStudent = event.target.value === "student";
       document.querySelector("#local-student-label").style.display = isStudent ? "grid" : "none";
       document.querySelector("#teacher-credentials").style.display = isStudent ? "none" : "block";
+      document.querySelector("#local-student-name").required = isStudent;
+      document.querySelector("#teacher-username").required = !isStudent;
+      document.querySelector("#teacher-password").required = !isStudent;
     });
     document.querySelector("#local-login-form").addEventListener("submit", (event) => {
       event.preventDefault();
@@ -801,6 +804,9 @@
       openLocalSystem();
     });
     document.querySelector("#sign-out").addEventListener("click", () => { sessionStorage.removeItem("tebyan-local-role"); sessionStorage.removeItem("tebyan-local-student"); window.location.reload(); });
+    document.querySelector("#local-student-name").required = false;
+    document.querySelector("#teacher-username").required = true;
+    document.querySelector("#teacher-password").required = true;
 
     const storageKey = "tebyan-students-v1";
     const scheduleDateKey = new Date().toISOString().slice(0, 10);
